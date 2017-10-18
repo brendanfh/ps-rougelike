@@ -302,7 +302,7 @@ var PS = {};
       };
   };
   var main = function __do() {
-      var v = getCanvas("gae")();
+      var v = getCanvas("game")();
       var v1 = Graphics_Canvas.getContext2D(v)();
       var v2 = Graphics_Canvas.setFillStyle("black")(v1)();
       var v3 = Graphics_Canvas.fillRect(v1)({
