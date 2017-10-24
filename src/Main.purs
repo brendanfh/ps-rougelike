@@ -13,31 +13,24 @@ import Data.Ord (abs)
 import Data.Traversable (for)
 import Partial.Unsafe (unsafePartial)
 
-type GameEff r = Eff ( canvas :: CANVAS, console :: CONSOLE, ref :: REF ) r
+import Player as P
+import Util
 
 foreign import requestAnimationFrame :: (Number -> GameEff Unit) -> GameEff Unit
 foreign import onKeyDown :: (Int -> GameEff Unit) -> GameEff Unit
 
-newtype Point = Point { x :: Number, y :: Number }
-
-instance semiringPoint :: Semiring Point where
-    add (Point p1) (Point p2) = Point { x : p1.x + p2.x, y : p1.y + p2.y }
-    zero = Point { x : 0.0, y : 0.0 }
-    mul (Point p1) (Point p2) = Point { x : p1.x * p2.x, y : p1.y * p2.y }
-    one = Point { x : 1.0, y : 1.0 }
-
 data GameEvent = NoOp | Redraw | KeyDown Int | KeyUp Int
 
 type Game = {
-    playerPos :: Point,
+    player :: P.Player,
     eventQueue :: List GameEvent
 }
 
 initial :: GameEff (Ref Game)
 initial = do
-    let game = {
-            playerPos : Point { x : 0.0, y : 0.0 },
-            eventQueue : Nil
+    let game =
+            { player : P.create 0.0 0.0
+            , eventQueue : Nil
             }
     gameRef <- newRef game
     pure gameRef
@@ -77,11 +70,12 @@ drawLitGrid w h size light ctx = do
                 max 0.0 ((5.0 - dist) / 5.0)
 
 drawGame :: Context2D -> Game -> GameEff Unit
-drawGame ctx { playerPos } = do
+drawGame ctx { player } = do
     _ <- setFillStyle "black" ctx
     _ <- fillRect ctx { x : 0.0, y : 0.0, w : 1000.0, h : 1000.0 }
 
-    drawLitGrid 20 15 32.0 playerPos ctx
+    drawLitGrid 20 15 32.0 player.pos ctx
+    P.draw ctx player
 
 --Returns true if a redraw is requested
 processEvents :: Ref Game -> GameEff Boolean
@@ -104,7 +98,7 @@ processEvents gameRef = do
                     68 -> Point { x : 1.0, y : 0.0 }
                     _ -> zero
 
-            modifyRef gameRef $ \g -> g { playerPos = g.playerPos + dx }
+            modifyRef gameRef $ \g -> g { player = P.move dx g.player}
             pure true
         
         processEvent _ Redraw = pure true
