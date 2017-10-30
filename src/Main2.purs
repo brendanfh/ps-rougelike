@@ -8,7 +8,19 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Data.Int (toNumber)
 
-data GameEvent = NoOp | Tick Number
+data GameEvent = NoOp | Tick Number | KeyDown Int
+
+init = pure 0
+
+update :: GameEvent -> Int -> Eff _ Int
+update e s = do
+    pure $ s + 1
+    
+draw :: Context2D -> Int -> Eff _ Unit
+draw ctx s = do
+    _ <- setFillStyle "black" ctx
+    _ <- fillRect ctx { x : toNumber s, y: 0.0, w : 32.0, h : 32.0 }
+    pure unit
 
 main ::
   Eff                    
@@ -17,12 +29,9 @@ main ::
     (GameManager Int GameEvent)
 main = do
     let game = {
-            init : pure 0,
-            update : \e s -> pure $ s + 1,
-            draw : \ctx x -> do
-                _ <- setFillStyle "black" ctx
-                _ <- fillRect ctx { x : toNumber x, y: 0.0, w : 32.0, h : 32.0 }
-                pure unit
+            init : init,
+            update : update,
+            draw : draw
     }
 
     let frame = \manager -> do
@@ -30,6 +39,9 @@ main = do
                     addGameEvent (Tick dt) manager
                     requestAnimationFrame d
             requestAnimationFrame d
+    
+    let keydown = \manager -> do
+            onKeyDown (\key-> addGameEvent (KeyDown key) manager)
 
-    runGame "game" [ frame ] game
+    runGame "game" [ keydown ] game
 
