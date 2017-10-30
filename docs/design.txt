@@ -1,0 +1,64 @@
+type Game s e = {
+    init :: Eff ( game :: GAME s e ) s,
+    update :: e -> s -> Eff ( game :: GAME s e ) s,
+    draw :: s -> Eff (canvas :: CANVAS, game :: GAME s e) Unit
+}
+
+foreign import data GameManager s e :: Type
+
+type GameEvent s e = GameManager s e -> Eff ( game :: GAME ) e
+
+foreign import runGame :: Array (GameEvent s e) -> Game s e -> Eff ( game :: GAME s e ) (GameManager s e)
+
+foreign import addGameEvent :: e -> GameManager s e -> Eff ( game :: GAME s e ) Unit
+foreign import getState :: GameManager s e -> Eff ( game :: GAME s e ) s
+
+exports.runGame = function(events) {
+    return function (game) {
+        return function () {
+            var g = {
+                state : game.init(),
+                events : []
+            };
+            
+            for (var i = 0; i < events.length; i++) {
+                events[i](g)();
+            }
+
+            function loop(dt) {
+                var redraw = false;
+                var i, event;
+                for (i = 0; i < g.events.length; i++) {
+                    event = g.events[i]; 
+                    g.state = g.update(event)(g.state)();
+                    redraw = true;
+                }
+                g.events.clear();
+
+                if (redraw) {
+                    g.draw(g.state)();
+                }
+
+                window.requestAnimationFrame(loop);
+            }
+            g.draw(g.state)();
+            window.requestAnimationFrame(loop);
+
+            return g; 
+        }
+    }
+};
+
+exports.addGameEvent = function (event) {
+    return function (gm) {
+        return function () {
+            gm.events.push(event);
+        }
+    }
+};
+
+exports.getState = function (gm) {
+    return function () {
+        return gm.state;
+    }
+}
